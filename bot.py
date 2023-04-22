@@ -4,47 +4,16 @@ import sqlite3
 
 conn = sqlite3.connect("bot.db")
 c = conn.cursor()
-#c.execute("""CREATE TABLE users(
-    #user_number integer PRIMARY KEY,
-    #stage integer,
-    #exp integer,
-    #speed_stat real,
-    #attack_stat real,
-    #health_stat real,
-    #max_stat integer,
-    #stat_points real
-    #)""")
-
-
-
-
-#c.execute("""CREATE TABLE minimum(
-   #user_number integer PRIMARY KEY,
-    #min_meditation integer,
-    #min_journaling integer,
-    #min_exercise integer,
-    #min_coldshower integer,
-    #amnt_meditation integer,
-    #amnt_journaling integer,
-    #amnt_exercise integer,
-    #amnt_coldshower integer,
-    #min_reading integer,
-    #amnt_reading integer,
-    #min_morningroutine integer,
-    #amnt_morningroutine integer,
-    #min_nightroutine integer,
-    #amnt_nightroutine integer,
-    #min_work integer,
-    #amnt_work integer,
-    #min_challengesfaced integer,
-    #amnt_challengesfaced integer
-   #)""")
 
 
 #challenge: set a value to true until you level up to three once your about to level up to four return "You have a challenge,"
 #after you complete the challenge then set the value to true and level up.
 
-
+# everytiem a reaction is made it checks if it is correct channel
+# It new function checks whether you are eligible to undergoe a tribulation and figures out which tribulation you-
+# are udergoing based on your level
+# sends out a message stating your requirements
+# does the function that waits a day before evaluating the amount of thumbs up comapred to thumbs down
 
 embed_color = discord.Colour.dark_teal()
 embed_title = "Title"
@@ -64,6 +33,7 @@ async def database(message, message_user):
     if(message4[0] == "tstart"):
          c.execute("INSERT INTO users VALUES(?, ?, ?, ?, ?, ?, ?, ?)", (message.author.id, 1, 0, 1, 1, 1, 50, 0))
          c.execute("INSERT INTO minimum VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (message.author.id, 20, 2, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+         c.execute("INSERT INTO tribulation VALUES(?, ?, ?, ?, ?, ?)", (message.author.id, 0, 0, 0, 0, 0))
          embed.description = "Database initialized."
          role_name = "Stage 1"
          role = discord.utils.get(message.guild.roles, name=role_name)
@@ -149,6 +119,57 @@ async def database(message, message_user):
         else:
             embed.description = "You do not have the sufficient authority"
             return embed
+    elif (message4[0] == "tcollapse"):
+        c.execute("DROP TABLE users")
+        c.execute("DROP TABLE minimum")
+        conn.commit()
+        embed.description = "Tables collapsed"
+        return embed
+    elif (message4[0] == "tbuildtables"):
+        c.execute("""CREATE TABLE users(
+              user_number integer PRIMARY KEY,
+              stage integer,
+              exp integer,
+              speed_stat real,
+              attack_stat real,
+              health_stat real,
+              max_stat integer,
+              stat_points real
+              )""")
+
+        c.execute("""CREATE TABLE minimum(
+              user_number integer PRIMARY KEY,
+              min_meditation integer,
+              min_journaling integer,
+              min_exercise integer,
+              min_coldshower integer,
+              amnt_meditation integer,
+              amnt_journaling integer,
+              amnt_exercise integer,
+              amnt_coldshower integer,
+              min_reading integer,
+              amnt_reading integer,
+              min_morningroutine integer,
+              amnt_morningroutine integer,
+              min_nightroutine integer,
+              amnt_nightroutine integer,
+              min_work integer,
+              amnt_work integer,
+              min_challengesfaced integer,
+              amnt_challengesfaced integer
+            )""")
+
+        c.execute("""CREATE TABLE tribulation(
+                  user_number integer PRIMARY KEY,
+                  first_challenge int,
+                  second_challenge int,
+                  third_challenge int,
+                  fourth_challenge int,
+                  fifth_challenge int
+                  ) """)
+        conn.commit()
+        embed.description = "table users and table minimum built"
+        return embed
 
 
 
@@ -231,6 +252,34 @@ async def input_tasks(message, message_user):
 
     else:
         return "You have not started your cultivation journey yet! Use the command !tstart to begin."
+
+
+async def challengescheck(reaction, user):
+    if reaction.message.reactions:
+        c.execute("SELECT * FROM tribulation")
+        tribulation_db = c.fetchone()
+        thumbs_up = 0
+        thumbs_down = 0
+        for reaction in reaction.message.reactions:
+            if reaction.emoji == '👍':
+                thumbs_up = reaction.count
+            elif reaction.emoji == '👎':
+                thumbs_down = reaction.count
+        if thumbs_up > thumbs_down:
+            if tribulation_db[1] == 0:
+                c.execute("UPDATE tribulation SET first_challenge = ? WHERE user_number = ?", (1, user.id))
+            elif tribulation_db[2] == 0:
+                c.execute("UPDATE tribulation SET second_challenge = ? WHERE user_number = ?", (1, user.id))
+            elif tribulation_db[3] == 0:
+                c.execute("UPDATE tribulation SET third_challenge = ? WHERE user_number = ?", (1, user.id))
+            elif tribulation_db[4] == 0:
+                c.execute("UPDATE tribulation SET fourth_challenge = ? WHERE user_number = ?", (1, user.id))
+            elif tribulation_db[5] == 0:
+                c.execute("UPDATE tribulation SET fifth_challenge = ? WHERE user_number = ?", (1, user.id))
+            conn.commit()
+            return True
+        else:
+            return False
 
 async def tasks_manager(message, message_user):
     embed.title = "Daily Log"
@@ -405,58 +454,61 @@ async def tasks_manager(message, message_user):
     challenges = minimum_result[18] >= minimum_result[17]
     if new_exp >= (result[0] * result[0]) * 100 and meditation and journaling and exercise and reading and coldShower and\
             morningRoutine and nightRoutine and work and challenges:
-        c.execute("UPDATE users SET stage = ?, exp = ?, max_stat = ?, stat_points = ? WHERE user_number = ?",
-                  (result[0] + 1, 0, result[6] * 2, result[7] + (result[0] + 1) * 10, message.author.id))
-        if result[0] + 1 > 7:
-            c.execute(
-                "UPDATE minimum SET min_exercise = ?, min_meditation = ?, min_journaling = ?, min_reading = ?, min_coldshower = ?, min_morningroutine = ?, min_nightroutine = ?, min_work = ?, min_challengesfaced = ?, amnt_exercise = ?, amnt_meditation = ?, amnt_journaling = ?, amnt_reading = ?, amnt_coldshower = ?, amnt_morningroutine = ?, amnt_nightroutine = ?, amnt_work = ?, amnt_challengesfaced = ? WHERE user_number = ?",
-                (minimum_result[3] * 2, minimum_result[1] * 2, minimum_result[2] * 2, minimum_result[9] * 2,
-                 minimum_result[4] * 2, minimum_result[11] * 2, minimum_result[13] * 2, minimum_result[15] * 2, minimum_result[17] * 2, 0,
-                 0,
-                 0, 0, 0, 0, 0, 0, 0, minimum_result[0]))
-        elif result[0] + 1 > 6:
-            c.execute(
-                "UPDATE minimum SET min_exercise = ?, min_meditation = ?, min_journaling = ?, min_reading = ?, min_coldshower = ?, min_morningroutine = ?, min_nightroutine = ?, min_work = ?, min_challengesfaced = ?, amnt_exercise = ?, amnt_meditation = ?, amnt_journaling = ?, amnt_reading = ?, amnt_coldshower = ?, amnt_morningroutine = ?, amnt_nightroutine = ?, amnt_work = ?, amnt_challengesfaced = ? WHERE user_number = ?",
-                (minimum_result[3] * 2, minimum_result[1] * 2, minimum_result[2] * 2, minimum_result[9] * 2,
-                 minimum_result[4] * 2, minimum_result[11] * 2, minimum_result[13] * 2, minimum_result[15] * 2, 10, 0, 0,
-                 0, 0, 0, 0, 0, 0, 0, minimum_result[0]))
-        elif result[0] + 1 > 5:
-            c.execute(
-                "UPDATE minimum SET min_exercise = ?, min_meditation = ?, min_journaling = ?, min_reading = ?, min_coldshower = ?, min_morningroutine = ?, min_nightroutine = ?, min_work = ?, amnt_exercise = ?, amnt_meditation = ?, amnt_journaling = ?, amnt_reading = ?, amnt_coldshower = ?, amnt_morningroutine = ?, amnt_nightroutine = ?, amnt_work = ? WHERE user_number = ?",
-                (minimum_result[3] * 2, minimum_result[1] * 2, minimum_result[2] * 2, minimum_result[9] * 2,
-                 minimum_result[4] * 2, minimum_result[11] * 2, minimum_result[13] * 2, 240, 0,
-                 0, 0, 0, 0, 0, 0, 0, minimum_result[0]))
-        elif result[0] + 1 > 4:
-            c.execute(
-                "UPDATE minimum SET min_exercise = ?, min_meditation = ?, min_journaling = ?, min_reading = ?, min_coldshower = ?, min_morningroutine = ?, min_nightroutine = ?, amnt_exercise = ?, amnt_meditation = ?, amnt_journaling = ?, amnt_reading = ?, amnt_coldshower = ?, amnt_morningroutine = ?, amnt_nightroutine = ? WHERE user_number = ?",
-                (minimum_result[3] * 2, minimum_result[1] * 2, minimum_result[2] * 2, minimum_result[9] * 2,
-                 minimum_result[4] * 2, minimum_result[11] * 2, 5, 0,
-                 0, 0, 0, 0, 0, 0, minimum_result[0]))
-        elif result[0] + 1 > 3:
-            c.execute(
-                "UPDATE minimum SET min_exercise = ?, min_meditation = ?, min_journaling = ?, min_reading = ?, min_coldshower = ?, min_morningroutine = ?, amnt_exercise = ?, amnt_meditation = ?, amnt_journaling = ?, amnt_reading = ?, amnt_coldshower = ?, amnt_morningroutine = ? WHERE user_number = ?",
-                (minimum_result[3] * 2, minimum_result[1] * 2, minimum_result[2] * 2, minimum_result[9] * 2, minimum_result[4] * 2, 5, 0, 0,
-                 0, 0, 0, 0, minimum_result[0]))
-        elif result[0] + 1 > 2:
-            c.execute(
-                "UPDATE minimum SET min_exercise = ?, min_meditation = ?, min_journaling = ?, min_reading = ?, min_coldshower = ?, amnt_exercise = ?, amnt_meditation = ?, amnt_journaling = ?, amnt_reading = ?, amnt_coldshower = ? WHERE user_number = ?",
-                (minimum_result[3] * 2, minimum_result[1] * 2, minimum_result[2] * 2, minimum_result[9] * 2, 3, 0, 0, 0, 0, 0, minimum_result[0]))
-        elif result[0] + 1 > 1:
-            c.execute(
-                "UPDATE minimum SET min_exercise = ?, min_meditation = ?, min_journaling = ?, min_reading = ?, amnt_exercise = ?, amnt_meditation = ?, amnt_journaling = ?, amnt_reading = ? WHERE user_number = ?",(
-                    minimum_result[3] * 2, minimum_result[1] * 2, minimum_result[2] * 2, 30, 0, 0, 0, 0, minimum_result[0]))
-        conn.commit()
+        if tribulation():
 
-        embed.description += f"""
-                            CONGRATULATIONS YOU HAVE LEVELED UP TO STAGE {result[0] + 1}!
-                            SP GAIN: {(result[0] + 1) * 10 }
-                            MAX STAT: {result[6] * 2}
-                            """
-        role_name = f"Stage {result[0] + 1}"
-        role = discord.utils.get(message.guild.roles, name=role_name)
-        if role:
-            await message.author.add_roles(role)
+            c.execute("UPDATE users SET stage = ?, exp = ?, max_stat = ?, stat_points = ? WHERE user_number = ?",
+                      (result[0] + 1, 0, result[6] * 2, result[7] + (result[0] + 1) * 10, message.author.id))
+            if result[0] + 1 > 7:
+                c.execute(
+                    "UPDATE minimum SET min_exercise = ?, min_meditation = ?, min_journaling = ?, min_reading = ?, min_coldshower = ?, min_morningroutine = ?, min_nightroutine = ?, min_work = ?, min_challengesfaced = ?, amnt_exercise = ?, amnt_meditation = ?, amnt_journaling = ?, amnt_reading = ?, amnt_coldshower = ?, amnt_morningroutine = ?, amnt_nightroutine = ?, amnt_work = ?, amnt_challengesfaced = ? WHERE user_number = ?",
+                    (minimum_result[3] * 2, minimum_result[1] * 2, minimum_result[2] * 2, minimum_result[9] * 2,
+                     minimum_result[4] * 2, minimum_result[11] * 2, minimum_result[13] * 2, minimum_result[15] * 2, minimum_result[17] * 2, 0,
+                     0,
+                     0, 0, 0, 0, 0, 0, 0, minimum_result[0]))
+            elif result[0] + 1 > 6:
+                c.execute(
+                    "UPDATE minimum SET min_exercise = ?, min_meditation = ?, min_journaling = ?, min_reading = ?, min_coldshower = ?, min_morningroutine = ?, min_nightroutine = ?, min_work = ?, min_challengesfaced = ?, amnt_exercise = ?, amnt_meditation = ?, amnt_journaling = ?, amnt_reading = ?, amnt_coldshower = ?, amnt_morningroutine = ?, amnt_nightroutine = ?, amnt_work = ?, amnt_challengesfaced = ? WHERE user_number = ?",
+                    (minimum_result[3] * 2, minimum_result[1] * 2, minimum_result[2] * 2, minimum_result[9] * 2,
+                     minimum_result[4] * 2, minimum_result[11] * 2, minimum_result[13] * 2, minimum_result[15] * 2, 10, 0, 0,
+                     0, 0, 0, 0, 0, 0, 0, minimum_result[0]))
+            elif result[0] + 1 > 5:
+                c.execute(
+                    "UPDATE minimum SET min_exercise = ?, min_meditation = ?, min_journaling = ?, min_reading = ?, min_coldshower = ?, min_morningroutine = ?, min_nightroutine = ?, min_work = ?, amnt_exercise = ?, amnt_meditation = ?, amnt_journaling = ?, amnt_reading = ?, amnt_coldshower = ?, amnt_morningroutine = ?, amnt_nightroutine = ?, amnt_work = ? WHERE user_number = ?",
+                    (minimum_result[3] * 2, minimum_result[1] * 2, minimum_result[2] * 2, minimum_result[9] * 2,
+                     minimum_result[4] * 2, minimum_result[11] * 2, minimum_result[13] * 2, 240, 0,
+                     0, 0, 0, 0, 0, 0, 0, minimum_result[0]))
+            elif result[0] + 1 > 4:
+                c.execute(
+                    "UPDATE minimum SET min_exercise = ?, min_meditation = ?, min_journaling = ?, min_reading = ?, min_coldshower = ?, min_morningroutine = ?, min_nightroutine = ?, amnt_exercise = ?, amnt_meditation = ?, amnt_journaling = ?, amnt_reading = ?, amnt_coldshower = ?, amnt_morningroutine = ?, amnt_nightroutine = ? WHERE user_number = ?",
+                    (minimum_result[3] * 2, minimum_result[1] * 2, minimum_result[2] * 2, minimum_result[9] * 2,
+                     minimum_result[4] * 2, minimum_result[11] * 2, 5, 0,
+                     0, 0, 0, 0, 0, 0, minimum_result[0]))
+            elif result[0] + 1 > 3:
+                c.execute(
+                    "UPDATE minimum SET min_exercise = ?, min_meditation = ?, min_journaling = ?, min_reading = ?, min_coldshower = ?, min_morningroutine = ?, amnt_exercise = ?, amnt_meditation = ?, amnt_journaling = ?, amnt_reading = ?, amnt_coldshower = ?, amnt_morningroutine = ? WHERE user_number = ?",
+                    (minimum_result[3] * 2, minimum_result[1] * 2, minimum_result[2] * 2, minimum_result[9] * 2, minimum_result[4] * 2, 5, 0, 0,
+                     0, 0, 0, 0, minimum_result[0]))
+            elif result[0] + 1 > 2:
+                c.execute(
+                    "UPDATE minimum SET min_exercise = ?, min_meditation = ?, min_journaling = ?, min_reading = ?, min_coldshower = ?, amnt_exercise = ?, amnt_meditation = ?, amnt_journaling = ?, amnt_reading = ?, amnt_coldshower = ? WHERE user_number = ?",
+                    (minimum_result[3] * 2, minimum_result[1] * 2, minimum_result[2] * 2, minimum_result[9] * 2, 3, 0, 0, 0, 0, 0, minimum_result[0]))
+            elif result[0] + 1 > 1:
+                c.execute(
+                    "UPDATE minimum SET min_exercise = ?, min_meditation = ?, min_journaling = ?, min_reading = ?, amnt_exercise = ?, amnt_meditation = ?, amnt_journaling = ?, amnt_reading = ? WHERE user_number = ?",(
+                        minimum_result[3] * 2, minimum_result[1] * 2, minimum_result[2] * 2, 30, 0, 0, 0, 0, minimum_result[0]))
+            conn.commit()
 
+            embed.description += f"""
+                                CONGRATULATIONS YOU HAVE LEVELED UP TO STAGE {result[0] + 1}!
+                                SP GAIN: {(result[0] + 1) * 10 }
+                                MAX STAT: {result[6] * 2}
+                                """
+            role_name = f"Stage {result[0] + 1}"
+            role = discord.utils.get(message.guild.roles, name=role_name)
+            if role:
+                await message.author.add_roles(role)
+        else:
+            embed.description = "You have to complete your tribulation before your breakthrough"
     return embed
 
 
@@ -512,6 +564,13 @@ def runDiscordBot():
 
                 await send_message(message, user_content, False)
 
+            else:
+                return
+        @client.event
+        async def on_reaction_add(reaction, user):
+            channel_id = 1090302287370518618
+            if reaction.message.channel.id == channel_id:
+                await challengescheck(reaction, user)
             else:
                 return
 
