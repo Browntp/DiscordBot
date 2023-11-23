@@ -3,6 +3,8 @@ import discord
 import response
 import sqlite3
 import datetime
+import os
+from dotenv import load_dotenv
 
 conn = sqlite3.connect("bot.db")
 c = conn.cursor()
@@ -708,7 +710,9 @@ async def send_message(message, user_message, isPrivate):
 
 
 def runDiscordBot():
-    TOKEN = "MTEwMzQ1MDM1MDA5MjAzODI3NQ.G8haaW.spIiacK-FAHtrAysAxMjXvtDZRErydu15le8fI"
+    load_dotenv()
+
+    TOKEN = os.environ["TOKEN"]
 
     intents = discord.Intents.default()
     intents.message_content = True
